@@ -29,4 +29,8 @@ def create_app():
     app.register_blueprint(forums_bp,      url_prefix="/api")
     app.register_blueprint(reports_bp,     url_prefix="/api")
 
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
     return app

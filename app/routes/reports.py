@@ -1,8 +1,21 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
+from app.cache import ttl_cache
 from app.db import get_db
 
 reports_bp = Blueprint("reports", __name__)
+
+
+@ttl_cache(seconds=60)
+def fetch_report_rows(query):
+    conn   = get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(query)
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # ============================================================
@@ -16,14 +29,8 @@ def courses_50_plus():
     if claims.get("role") != "admin":
         return jsonify({"error": "Only admins can view reports"}), 403
 
-    conn   = get_db()
-    cursor = conn.cursor(dictionary=True)
-    try:
-        cursor.execute("SELECT * FROM view_courses_50_plus ORDER BY student_count DESC")
-        return jsonify(cursor.fetchall()), 200
-    finally:
-        cursor.close()
-        conn.close()
+    rows = fetch_report_rows("SELECT * FROM view_courses_50_plus ORDER BY student_count DESC")
+    return jsonify(rows), 200
 
 
 # ============================================================
@@ -37,14 +44,8 @@ def students_5_plus():
     if claims.get("role") != "admin":
         return jsonify({"error": "Only admins can view reports"}), 403
 
-    conn   = get_db()
-    cursor = conn.cursor(dictionary=True)
-    try:
-        cursor.execute("SELECT * FROM view_students_5_plus_courses ORDER BY course_count DESC")
-        return jsonify(cursor.fetchall()), 200
-    finally:
-        cursor.close()
-        conn.close()
+    rows = fetch_report_rows("SELECT * FROM view_students_5_plus_courses ORDER BY course_count DESC")
+    return jsonify(rows), 200
 
 
 # ============================================================
@@ -58,14 +59,8 @@ def lecturers_3_plus():
     if claims.get("role") != "admin":
         return jsonify({"error": "Only admins can view reports"}), 403
 
-    conn   = get_db()
-    cursor = conn.cursor(dictionary=True)
-    try:
-        cursor.execute("SELECT * FROM view_lecturers_3_plus_courses ORDER BY course_count DESC")
-        return jsonify(cursor.fetchall()), 200
-    finally:
-        cursor.close()
-        conn.close()
+    rows = fetch_report_rows("SELECT * FROM view_lecturers_3_plus_courses ORDER BY course_count DESC")
+    return jsonify(rows), 200
 
 
 # ============================================================
@@ -79,11 +74,7 @@ def top_10_courses():
     if claims.get("role") != "admin":
         return jsonify({"error": "Only admins can view reports"}), 403
 
-    conn   = get_db()
-    cursor = conn.cursor(dictionary=True)
-    try:
-        # Query directly to avoid MySQL LIMIT-in-view issue
-        cursor.execute("""
+    rows = fetch_report_rows("""
             SELECT c.course_id, c.course_code, c.course_name,
                    COUNT(e.student_id) AS student_count
             FROM course c
@@ -92,10 +83,7 @@ def top_10_courses():
             ORDER BY student_count DESC
             LIMIT 10
         """)
-        return jsonify(cursor.fetchall()), 200
-    finally:
-        cursor.close()
-        conn.close()
+    return jsonify(rows), 200
 
 
 # ============================================================
@@ -109,11 +97,7 @@ def top_10_students():
     if claims.get("role") != "admin":
         return jsonify({"error": "Only admins can view reports"}), 403
 
-    conn   = get_db()
-    cursor = conn.cursor(dictionary=True)
-    try:
-        # Query directly to avoid MySQL LIMIT-in-view issue
-        cursor.execute("""
+    rows = fetch_report_rows("""
             SELECT s.student_id, u.first_name, u.last_name, u.email,
                    ROUND(AVG((sub.grade / a.max_grade) * 100), 2) AS average_percentage
             FROM student s
@@ -125,7 +109,4 @@ def top_10_students():
             ORDER BY average_percentage DESC
             LIMIT 10
         """)
-        return jsonify(cursor.fetchall()), 200
-    finally:
-        cursor.close()
-        conn.close()
+    return jsonify(rows), 200

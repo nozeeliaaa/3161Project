@@ -1,0 +1,36 @@
+services:
+  api:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: mysql
+      DB_USER: comp3161_user
+      DB_PASSWORD: comp3161_password
+      DB_NAME: comp3161_project
+      JWT_SECRET_KEY: 319685425ea3a0dfd6064448ef0b447d951c022c22f8c55a90724bf552e43058
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: comp3161_project
+      MYSQL_USER: comp3161_user
+      MYSQL_PASSWORD: comp3161_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/populate.sql:/docker-entrypoint-initdb.d/02-populate.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:

@@ -3,7 +3,7 @@
 -- MySQL Version
 -- ============================================================
 
-USE course_management;
+USE comp3161_project;
 
 -- Turn off safe mode and foreign key checks for bulk inserts
 SET SQL_SAFE_UPDATES = 0;
